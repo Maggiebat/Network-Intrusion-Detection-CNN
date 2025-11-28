@@ -1,11 +1,12 @@
-from scapy.all import sniff, IP, TCP, UDP
+from scapy.all import sniff, IP, TCP, UDP, Raw
 import pandas as pd
 import pickle
 import ipaddress
 from datetime import datetime
+import torch
 
 #  Load trained model **change to CNN model**
-with open('ids.pkl', 'rb') as f:
+with open('ids_cnn.pkl', 'rb') as f:
     model = pickle.load(f)
 
 # begins packet processing
@@ -28,6 +29,8 @@ def process_packet(pkt):
 
         # Can I add the t_delta (time between packets) feature here?
 
+        # payload bytes extraction added here
+
         # Prepare features for prediction **need to alter to match our features**
         features = pd.DataFrame([{
             'protocol': proto,
@@ -37,18 +40,17 @@ def process_packet(pkt):
 
         # Perform prediction **see note at top and adjust as needed**
         prediction = model.predict(features)[0]
-        score = model.decision_function(features)[0]
 
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         label = 'ATTACK DETECTED' if prediction == -1 else 'NORMAL'
 
         # Print alert
-        print(f"{timestamp} | {label} | {pkt[IP].src} → {pkt[IP].dst} | proto={proto}, len={length} | score={score:.4f}")
+        print(f"{timestamp} | {label} | {pkt[IP].src} → {pkt[IP].dst} | proto={proto}, len={length}")
 
         # Optional logging of attacks
         with open("live_attack_log.csv", "a") as f:
-            f.write(f"{timestamp},{pkt[IP].src},{pkt[IP].dst},{src_port},{dst_port},{proto},{length},{score:.4f},{label}\n")
-
+            f.write(f"{timestamp},{pkt[IP].src},{pkt[IP].dst},{src_port},{dst_port},{proto},{length},{label}\n")
+            
 # Opens up interface for sniffing
 print("Starting live attack detection... Press Ctrl+C to stop.")
 sniff(iface="enp5s0", prn=process_packet, store=False)

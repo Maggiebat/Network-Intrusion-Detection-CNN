@@ -15,10 +15,6 @@ def process_packet(pkt):
         proto = pkt[IP].proto
         length = len(pkt)
 
-        # Initialize ports
-        # src_port = 0
-        # dst_port = 0
-
         # Extract ports if TCP or UDP
         if TCP in pkt:
             src_port = pkt[TCP].sport
@@ -27,21 +23,26 @@ def process_packet(pkt):
             src_port = pkt[UDP].sport
             dst_port = pkt[UDP].dport
 
+        # figure out the time to live between packets
+
         # Can I add the t_delta (time between packets) feature here?
 
         # payload bytes extraction added here
 
         # Prepare features for prediction **need to alter to match our features**
         features = pd.DataFrame([{
+            'ttl': 0,  # Placeholder for TTL feature
             'protocol': proto,
             'total_len': length,
             't_delta': 0  # Placeholder for time delta feature
+
         }])
 
         # Perform prediction **see note at top and adjust as needed**
         prediction = model.predict(features)[0]
 
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        # alter based on what's considered an attack
         label = 'ATTACK DETECTED' if prediction == -1 else 'NORMAL'
 
         # Print alert
@@ -53,4 +54,5 @@ def process_packet(pkt):
             
 # Opens up interface for sniffing
 print("Starting live attack detection... Press Ctrl+C to stop.")
+# this is how the live capture happens!!!
 sniff(iface="enp5s0", prn=process_packet, store=False)

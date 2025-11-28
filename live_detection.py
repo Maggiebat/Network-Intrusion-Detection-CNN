@@ -4,7 +4,7 @@ import pickle
 import ipaddress
 from datetime import datetime
 
-#  Load trained model 
+#  Load trained model **change to CNN model**
 with open('ids.pkl', 'rb') as f:
     model = pickle.load(f)
 
@@ -23,8 +23,8 @@ def process_packet(pkt):
         length = len(pkt)
 
         # Initialize ports
-        src_port = 0
-        dst_port = 0
+        # src_port = 0
+        # dst_port = 0
 
         # Extract ports if TCP or UDP
         if TCP in pkt:
@@ -34,16 +34,12 @@ def process_packet(pkt):
             src_port = pkt[UDP].sport
             dst_port = pkt[UDP].dport
 
-        # Prepare features for prediction
+        # Prepare features for prediction **need to alter to match our features**
         features = pd.DataFrame([{
-            'src_ip': src_ip,
-            'src_port': src_port,
-            'dst_port': dst_port,
             'protocol': proto,
-            'length': length
         }])
 
-        # Perform prediction
+        # Perform prediction **see note at top and adjust as needed**
         prediction = model.predict(features)[0]
         score = model.decision_function(features)[0]
 

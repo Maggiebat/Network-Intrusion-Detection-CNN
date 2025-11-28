@@ -3,10 +3,17 @@ import pandas as pd
 from datetime import datetime
 import torch
 
-#  Load trained model **change to CNN model**
-with open('best.pt', 'rb') as f:
-    model = torch.load(f)
-model.eval()
+#  Load trained model
+try:
+    with open('best.pt', 'rb') as f:
+        model = torch.load(f, map_location=torch.device('cpu'))
+    model.eval()
+except FileNotFoundError:
+    print("Model file 'best.pt' not found. Please ensure the model is in the current directory.")
+    exit()
+except Exception as e:
+    print(f"Error loading model: {e}")
+    exit()
 
 last_packet_time = 0.0
 
@@ -80,4 +87,4 @@ def process_packet(pkt):
 # Opens up interface for sniffing
 print("Starting live attack detection... Press Ctrl+C to stop.")
 # this is how the live capture happens!!!
-sniff(iface="enp5s0", prn=process_packet, store=False)
+sniff(prn=process_packet, store=False)

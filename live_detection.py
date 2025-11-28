@@ -8,17 +8,9 @@ from datetime import datetime
 with open('ids.pkl', 'rb') as f:
     model = pickle.load(f)
 
-# converts IP to integer value
-def ip_to_int(ip_address):
-    try:
-        return int(ipaddress.ip_address(ip_address))
-    except ValueError:
-        return 0  # fallback
-
 # begins packet processing
 def process_packet(pkt):
     if IP in pkt:
-        src_ip = ip_to_int(pkt[IP].src)
         proto = pkt[IP].proto
         length = len(pkt)
 
@@ -34,9 +26,13 @@ def process_packet(pkt):
             src_port = pkt[UDP].sport
             dst_port = pkt[UDP].dport
 
+        # Can I add the t_delta (time between packets) feature here?
+
         # Prepare features for prediction **need to alter to match our features**
         features = pd.DataFrame([{
             'protocol': proto,
+            'total_len': length,
+            't_delta': 0  # Placeholder for time delta feature
         }])
 
         # Perform prediction **see note at top and adjust as needed**

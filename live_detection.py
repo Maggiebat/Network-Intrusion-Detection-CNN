@@ -7,7 +7,7 @@ import torch
 
 #  Load trained model **change to CNN model**
 with open('ids_cnn.pkl', 'rb') as f:
-    model = pickle.load(f)
+    model = torch.load(f)
 
 # begins packet processing
 def process_packet(pkt):

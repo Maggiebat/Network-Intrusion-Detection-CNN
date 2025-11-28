@@ -18,6 +18,14 @@ def process_packet(pkt):
     global last_packet_time
     current_time = pkt.time
 
+    # t_delta extraction
+    if last_packet_time == 0.0:
+        t_delta = 0.0
+    else:
+        t_delta = float(current_time - last_packet_time)
+
+    last_packet_time = current_time
+
     if IP not in pkt:
         return  # Ignore non-IP packets
 
@@ -36,14 +44,6 @@ def process_packet(pkt):
 
     # Extract TTL
     ttl = int(pkt[IP].ttl)
-
-    # t_delta extraction
-    if last_packet_time == 0.0:
-        t_delta = 0.0
-    else:
-        t_delta = float(current_time - last_packet_time)
-
-    last_packet_time = current_time
 
     # payload bytes extraction
     payload_bytes = []

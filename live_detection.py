@@ -2,14 +2,21 @@ from scapy.all import sniff, IP, TCP, UDP, Raw
 import pandas as pd
 from datetime import datetime
 import torch
+import torch.nn as nn
+import numpy as np
+from model import FC_CNN
 
 #  Load trained model
 try:
-    with open('best.pt', 'rb') as f:
-        model = torch.load(f, map_location=torch.device('cpu'))
-    model.eval()
+    with open('cicids_cnn_best_ckpt.pt', 'rb') as f:
+        device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        ckpt=torch.load("cicids_cnn_best_ckpt.pt",map_location=device)
+
+        m=FC_CNN(num_features=int(ckpt["num_features"]), cfg=ckpt["cfg"]).to(device)
+        m.load_state_dict(ckpt["model_state"])
+    m.eval()
 except FileNotFoundError:
-    print("Model file 'best.pt' not found. Please ensure the model is in the current directory.")
+    print("Model file 'cicids_cnn_best_ckpt.pt' not found. Please ensure the model is in the current directory.")
     exit()
 except Exception as e:
     print(f"Error loading model: {e}")
@@ -68,9 +75,9 @@ def process_packet(pkt):
 
     # Perform prediction **see note at top and adjust as needed**
     try:
-        input_tensor = torch.tensor(features.values, dtype=torch.float32)
+        input_tensor = torch.tensor(features.values, dtype=torch.float32).unsqueeze(1).to(device)
         with torch.no_grad():
-            output = model(input_tensor)
+            output = m(input_tensor)
             prediction = torch.argmax(output, dim=1).item()
         
         label = 'ATTACK DETECTED' if prediction == 0 else 'NORMAL'

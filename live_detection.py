@@ -2,8 +2,6 @@ from scapy.all import sniff, IP, TCP, UDP, Raw
 import pandas as pd
 from datetime import datetime
 import torch
-import torch.nn as nn
-import numpy as np
 from model import FC_CNN
 
 #  Load trained model
@@ -25,7 +23,7 @@ except Exception as e:
 last_packet_time = 0.0
 
 PAYLOAD_COLS = [f'payload_byte_{i+1}' for i in range(1500)]
-ALL_COLS = ['ttl', 'length', 'proto_bin', 't_delta'] + PAYLOAD_COLS
+ALL_COLS = PAYLOAD_COLS + ['ttl', 'total_len', 'proto_bin', 't_delta']
 
 # begins packet processing
 def process_packet(pkt):
@@ -70,7 +68,7 @@ def process_packet(pkt):
         payload_bytes.extend(padding)
 
     # DataFrame creation
-    row_data = [ttl, total_len, proto_bin, t_delta] + payload_bytes
+    row_data = payload_bytes + [ttl, total_len, proto_bin, t_delta]
     features = pd.DataFrame([row_data], columns=ALL_COLS)
 
     # Perform prediction **see note at top and adjust as needed**
@@ -83,10 +81,10 @@ def process_packet(pkt):
         label = 'ATTACK DETECTED' if prediction == 1 else 'NORMAL'
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
-        print(f"{timestamp} | {label} | {pkt[IP].src} -> {pkt[IP].dst} | Proto: {'TCP' if proto_bin==0 else 'UDP'} | Len: {total_len}")
-        # Optional logging of attacks
-        with open("live_attack_log.csv", "a") as f:
-            f.write(f"{timestamp},{pkt[IP].src},{pkt[IP].dst},{src_port},{dst_port},{proto_bin},{total_len},{label}\n")
+        print(f"{label} | {ttl} | {total_len} | {'TCP' if proto_bin==0 else 'UDP'} | {t_delta} | {payload_bytes[:10]}...") 
+
+        with open("NIDS_results_log.csv", "a") as f:
+            f.write(f"{label} | {ttl} | {total_len} | {'TCP' if proto_bin==0 else 'UDP'} | {t_delta} | {payload_bytes[:10]}...\n")
 
     except Exception as e:
         print(f"Error during prediction: {e}")

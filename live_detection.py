@@ -80,7 +80,7 @@ def process_packet(pkt):
             output = m(input_tensor)
             prediction = torch.argmax(output, dim=1).item()
         
-        label = 'ATTACK DETECTED' if prediction == 0 else 'NORMAL'
+        label = 'ATTACK DETECTED' if prediction == 1 else 'NORMAL'
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         print(f"{timestamp} | {label} | {pkt[IP].src} -> {pkt[IP].dst} | Proto: {'TCP' if proto_bin==0 else 'UDP'} | Len: {total_len}")

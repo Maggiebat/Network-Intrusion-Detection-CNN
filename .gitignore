@@ -3,3 +3,6 @@ train_data_log2.csv
 =======
 train_data_log2.csv
 >>>>>>> 14d7a2e (added a gitignore)
+CICIDS_live_capture_preprocessed.csv
+NIDS.pt
+malicious_packets.csv

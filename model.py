@@ -35,12 +35,28 @@ class FC_CNN(nn.Module):
         x=self.features(x).flatten(1); x=self.do1(self.act(self.fc1(x))); x=self.do2(self.act(self.fc2(x))); return self.out(x)
 
 # --------------------------
+# Safe torch.load (PyTorch 2.6+ weights_only default)
+# --------------------------
+def _torch_load(path,device):
+    try: return torch.load(path,map_location=device,weights_only=False)
+    except TypeError: return torch.load(path,map_location=device)  # older torch: no weights_only kwarg
+
+# --------------------------
 # Loading
 # --------------------------
 def load_ckpt_model(ckpt_path,device=None):
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
-    ckpt=torch.load(ckpt_path,map_location=device)
-    cfg=ckpt["cfg"]; nf=int(ckpt["num_features"])
+    ckpt=_torch_load(ckpt_path,device)
+    cfg=ckpt["cfg"]
+
+    nf=ckpt.get("num_features",None)
+    if nf is None:
+        fn=ckpt.get("feature_names",None); sm=ckpt.get("scaler_mean",None)
+        if fn is not None: nf=len(fn)
+        elif sm is not None: nf=len(sm)
+        else: raise KeyError(f"Checkpoint missing num_features and cannot infer it. Keys: {list(ckpt.keys())}")
+    nf=int(nf)
+
     m=FC_CNN(nf,cfg).to(device); m.load_state_dict(ckpt["model_state"]); m.eval()
     return m,ckpt
 
@@ -52,12 +68,16 @@ _DROP=("Flow ID","Source IP","Source Port","Destination IP","Destination Port","
 def df_to_tensor(df,feature_names=None,scaler_mean=None,scaler_scale=None,device=None):
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
     d=df.drop(columns=[c for c in _DROP if c in df.columns],errors="ignore")
-    d=d.replace([np.inf,-np.inf],np.nan).dropna()
+    d=d.replace([np.inf,-np.inf],np.nan)
     d=d.select_dtypes(include=[np.number])
+
     if feature_names is not None:
         for c in feature_names:
             if c not in d.columns: d[c]=0.0
         d=d[feature_names]
+
+    if d.isna().any().any(): d=d.fillna(0.0)
+
     X=d.to_numpy(dtype=np.float32)
     if scaler_mean is not None and scaler_scale is not None:
         X=(X-np.asarray(scaler_mean,dtype=np.float32))/np.asarray(scaler_scale,dtype=np.float32)

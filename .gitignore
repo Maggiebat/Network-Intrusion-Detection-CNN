@@ -9,6 +9,7 @@ CICIDS-2017_preprocessed.csv
 malicious_packets.csv
 model/NIDS.pt
 model/best.pt
+NIDS_results_log.csv
 *.pyc
 *.pt
 *.ckpt

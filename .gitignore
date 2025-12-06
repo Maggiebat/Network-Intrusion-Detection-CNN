@@ -10,6 +10,7 @@ malicious_packets.csv
 model/NIDS.pt
 model/best.pt
 NIDS_results_log.csv
+packet_data.csv
 *.pyc
 *.pt
 *.ckpt

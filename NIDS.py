@@ -161,10 +161,19 @@ def train(model, train_dl, val_dl, device, epochs=EPOCHS, lr=LR, step_size=STEP_
             # Set Gradients to None
             optimizer.zero_grad(set_to_none=True)
 
-            # Compute loss, perform Backpropagation, and step optimizer
+            # Compute batch loss
             loss=critereon(model(xb), yb)
+
+            # Perform backpropagation
             loss.backward()
-            optimizer.step() 
+
+            # Apply gradient clipping to avoid exploding gradients
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
+            # Step optimizer
+            optimizer.step()
+            
+            # Update training loss
             bs=int(yb.numel())
             loss_sum+=float(loss.item())*bs; n+=bs
 
@@ -196,18 +205,40 @@ def train(model, train_dl, val_dl, device, epochs=EPOCHS, lr=LR, step_size=STEP_
 def _save_plots(hist, out_dir, yt, pt):
     out_dir=Path(out_dir)
     out_dir.mkdir(parents=True,exist_ok=True)
+    
+    # Variables for Loss Curve
     ep=[r["epoch"] for r in hist]
     tr=[r["train_loss"] for r in hist]
     va=[r["val_loss"] for r in hist]
+    
+    # Variables for ROC Curve
     fpr, tpr, _ = roc_curve(yt, pt)
     aucv = float(roc_auc_score(yt, pt))
 
-    plt.figure(); plt.plot(ep,tr,label="train_loss"); plt.plot(ep,va,label="val_loss"); plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.tight_layout()
-    plt.savefig(out_dir/"loss_curve.png", dpi=200); plt.close()
+    # Variables for F1 Confusion Matrix
+    yhat = (np.asarray(pt) >= 0.5).astype(np.int64)
+    labels = [0,1]; names  = ["BENIGN","MALICIOUS"]
+    cm = confusion_matrix(yt, yhat, labels=labels).astype(np.float64)
+    row_sum = cm.sum(axis=1, keepdims=True); col_sum = cm.sum(axis=0, keepdims=True)
+    f1_cell = np.divide(2.0*cm, row_sum+col_sum, out=np.zeros_like(cm), where=(row_sum+col_sum>0))
 
-    plt.figure(); plt.plot(fpr, tpr, label=f"ROC (AUC={aucv:.4f})"); plt.plot([0,1],[0,1], linewidth=1, label="Random"); plt.fill_between(fpr, tpr, fpr, alpha=0.2)
-    plt.xlabel("FPR"); plt.ylabel("TPR"); plt.title("ROC Curve"); plt.legend(); plt.tight_layout()
-    plt.savefig(out_dir/"roc_curve.png", dpi=200); plt.close()
+    # Create Loss Curve Plot
+    plt.figure(); plt.plot(ep,tr,label="train_loss"); plt.plot(ep,va,label="val_loss"); plt.xlabel("epoch")
+    plt.ylabel("loss"); plt.legend(); plt.tight_layout(); plt.savefig(out_dir/"loss_curve.png", dpi=200); plt.close()
+
+    #Create ROC Curve Plot
+    plt.figure(); plt.plot(fpr, tpr, label=f"ROC (AUC={aucv:.4f})"); plt.plot([0,1],[0,1], linewidth=1, label="Random")
+    plt.fill_between(fpr, tpr, fpr, alpha=0.2); plt.xlabel("FPR"); plt.ylabel("TPR"); plt.title("ROC Curve")
+    plt.legend(); plt.tight_layout(); plt.savefig(out_dir/"roc_curve.png", dpi=200); plt.close()
+
+    # Create F1 Confusion Matrix
+    plt.figure(); im = plt.imshow(f1_cell, vmin=0.0, vmax=1.0); plt.colorbar(im, fraction=0.046, pad=0.04)
+    plt.xticks(range(len(names)), names, rotation=15); plt.yticks(range(len(names)), names)
+    plt.xlabel("Predicted"); plt.ylabel("True"); plt.title("Confusion Matrix (cellwise F1)")
+    for i in range(f1_cell.shape[0]):
+        for j in range(f1_cell.shape[1]):
+            plt.text(j, i, f"{f1_cell[i,j]:.3f}\n(n={int(cm[i,j])})", ha="center", va="center")
+    plt.tight_layout(); plt.savefig(out_dir/"confusion_f1.png", dpi=200); plt.close()
 
 # Main function to train model
 def main():
@@ -310,14 +341,16 @@ def main():
     torch.save(ckpt, best_path)
     print("saved:", best_path)
 
-    # Save plots, training history, and test metrics
+    # Create and save plots and figures
     fm=RESULTS_DIR
     _save_plots(hist, fm, yt, pt)
 
+    # Save training history
     with (fm/"history.csv").open("w",newline="") as f:
         w=csv.DictWriter(f,fieldnames=list(hist[0].keys()))
         w.writeheader(); [w.writerow(r) for r in hist]
 
+    # Save test metrics
     with (fm/"test_metrics.csv").open("w",newline="") as f:
         w=csv.DictWriter(f,fieldnames=list(metrics.keys()))
         w.writeheader(); w.writerow(metrics)
